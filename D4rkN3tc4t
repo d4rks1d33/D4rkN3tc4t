@@ -1,0 +1,124 @@
+#!/bin/python3
+
+import wx
+import subprocess
+import threading
+import os
+
+def execute_command(command):
+    output = subprocess.check_output(command, shell=True)
+    return output.decode()
+
+def start_listener(ip, port):
+    global process
+    command = f"nc -lnvp {port}"
+    if ip:
+        command += f" -s {ip}"
+    process = subprocess.Popen(command, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    return process
+
+def listen_for_output():
+    while True:
+        output = process.stdout.readline()
+        if not output:
+            break
+        wx.CallAfter(frame.append_output_text, output.decode(errors='ignore'))
+        if "exit netcat" in output.decode(errors='ignore'):
+            wx.CallAfter(frame.close_netcat)
+
+class MainWindow(wx.Frame):
+    def __init__(self):
+        super().__init__(None, title="Main window", size=(400, 300))
+        panel = wx.Panel(self)
+        
+        
+        self.output_text = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY)
+        
+        
+        command_label = wx.StaticText(panel, label="Command:")
+        self.command_entry = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER)
+        self.command_entry.Bind(wx.EVT_TEXT_ENTER, self.execute_remote_command)
+        
+        
+        ip_label = wx.StaticText(panel, label="IP:")
+        self.ip_entry = wx.TextCtrl(panel)
+        
+        
+        port_label = wx.StaticText(panel, label="Port:")
+        self.port_entry = wx.TextCtrl(panel)
+        
+        
+        start_button = wx.Button(panel, label="Start D4rkN3tc4t")
+        start_button.Bind(wx.EVT_BUTTON, self.start_netcat)
+        
+        
+        self.execute_button = wx.Button(panel, label="Close D4rkN3tc4t")
+        self.execute_button.Bind(wx.EVT_BUTTON, self.close_netcat)
+        
+        
+        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        button_sizer.Add(start_button)
+        button_sizer.AddStretchSpacer(1)  
+        button_sizer.Add(self.execute_button)
+        
+        
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.output_text, proportion=1, flag=wx.EXPAND)
+        sizer.Add(command_label, flag=wx.TOP, border=5)
+        sizer.Add(self.command_entry, flag=wx.EXPAND)
+        sizer.Add(ip_label, flag=wx.TOP, border=5)
+        sizer.Add(self.ip_entry, flag=wx.EXPAND)
+        sizer.Add(port_label, flag=wx.TOP, border=5)
+        sizer.Add(self.port_entry, flag=wx.EXPAND)
+        sizer.Add(button_sizer, flag=wx.TOP | wx.EXPAND, border=5)
+        
+        panel.SetSizer(sizer)
+        
+        self.process = None
+
+    def start_netcat(self, event):
+        ip = self.ip_entry.GetValue()
+        port = self.port_entry.GetValue()
+        
+        if not ip or not port:
+            wx.MessageBox("You must provide the IP address and the port.", "Error", wx.OK | wx.ICON_ERROR)
+            return
+        
+        self.process = start_listener(ip, port)
+        
+        
+        output_thread = threading.Thread(target=listen_for_output)
+        output_thread.daemon = True
+        output_thread.start()
+    
+    def execute_remote_command(self, event):
+        if not self.process:
+            wx.MessageBox("D4rkN3tc4t is not started.", "Error", wx.OK | wx.ICON_ERROR)
+            return
+        
+        command = self.command_entry.GetValue()
+        self.command_entry.SetValue("")
+        
+        if command == "clear":
+            self.output_text.Clear()  
+        elif command == "exit D4rkN3tc4t":
+            self.close_netcat()
+        else:
+            self.process.stdin.write((command + "\n").encode())
+            self.process.stdin.flush()
+    
+    def append_output_text(self, text):
+        self.output_text.AppendText(text)
+    
+    def close_netcat(self, event=None):
+        if self.process:
+            self.process.stdin.write(b"exit\n")  
+            self.process.stdin.flush()
+            self.process.kill()
+        os._exit(0)
+
+app = wx.App()
+frame = MainWindow()
+frame.SetTitle("D4rkN3tc4t")
+frame.Show()
+app.MainLoop()
