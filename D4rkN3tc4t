@@ -48,11 +48,11 @@ class MainWindow(wx.Frame):
         self.port_entry = wx.TextCtrl(panel)
         
         
-        start_button = wx.Button(panel, label="Start D4rkN3tc4t")
+        start_button = wx.Button(panel, label="Start")
         start_button.Bind(wx.EVT_BUTTON, self.start_netcat)
         
         
-        self.execute_button = wx.Button(panel, label="Close D4rkN3tc4t")
+        self.execute_button = wx.Button(panel, label="Close")
         self.execute_button.Bind(wx.EVT_BUTTON, self.close_netcat)
         
         
